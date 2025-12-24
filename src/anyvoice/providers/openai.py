@@ -147,3 +147,15 @@ class OpenAITTSProvider(TTSProvider):
             speed=speed,
             chunk_size=chunk_size,
         )
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        async with OpenAITTSProvider() as provider:
+            session = provider.session(voice="nova")
+            async for chunk in session.synthesize("Hello, this is a test."):
+                print(f"Got {len(chunk)} bytes")
+
+    asyncio.run(main())

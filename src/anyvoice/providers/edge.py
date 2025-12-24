@@ -153,3 +153,15 @@ class EdgeTTSProvider(TTSProvider):
             pitch=pitch,
             sample_rate=sample_rate or self._sample_rate,
         )
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        async with EdgeTTSProvider() as provider:
+            session = provider.session()
+            async for chunk in session.synthesize("Hello, this is a test."):
+                print(f"Got {len(chunk)} bytes")
+
+    asyncio.run(main())
