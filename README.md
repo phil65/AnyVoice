@@ -23,29 +23,34 @@
 [![Package status](https://codecov.io/gh/phil65/anyvoice/branch/main/graph/badge.svg)](https://codecov.io/gh/phil65/anyvoice/)
 [![PyUp](https://pyup.io/repos/github/phil65/anyvoice/shield.svg)](https://pyup.io/repos/github/phil65/anyvoice/)
 
-[Read the documentation!](https://phil65.github.io/anyvoice/)
 
+[Read the documentation!](https://phil65.github.io/AnyVoice/)
 
-# AnyVoice
-
-A streaming-friendly Text-to-Speech library with pluggable providers and audio backends.
+AnyVoice is a small async library that puts streaming Text-to-Speech providers behind one
+interface. Feed it text as it arrives (for example token by token from an LLM), and it buffers
+the text into sentences, synthesizes them and sends raw PCM audio to a pluggable sink: your
+speakers, a WAV file or your own callback.
 
 ## Features
 
-- **Multiple TTS providers**: OpenAI, Edge TTS (free, no API key)
-- **Pluggable audio sinks**: Speaker playback, file output, custom callbacks
-- **Streaming support**: Sentence buffering and incremental synthesis
-- **Sync modes**: Control how audio playback synchronizes with text streaming
+- **Multiple TTS providers**: OpenAI TTS and Microsoft Edge TTS (free, no API key)
+- **Pluggable audio sinks**: speaker playback, WAV file output, custom callbacks
+- **Streaming input**: incremental `feed()` with sentence-boundary buffering
+- **Synchronization modes**: choose whether `feed()` waits for audio or synthesis runs in the background
+- **Lightweight**: no required dependencies; provider libraries are optional extras and imported lazily
 
 ## Installation
 
 ```bash
-# For OpenAI TTS
-pip install agentpool[tts]
+# OpenAI TTS (needs an OpenAI API key)
+pip install "anyvoice[openai]"
 
-# For Edge TTS (free)
-pip install agentpool[tts-edge]
+# Edge TTS (free, no API key)
+pip install "anyvoice[tts-edge]"
 ```
+
+Speaker playback uses [sounddevice](https://python-sounddevice.readthedocs.io/), which needs the
+PortAudio system library.
 
 ## Quick Start
 
@@ -53,11 +58,12 @@ pip install agentpool[tts-edge]
 
 ```python
 import asyncio
-from agentpool_tts import TTSStream, OpenAITTSProvider, SoundDeviceSink
+
+from anyvoice import OpenAITTSProvider, SoundDeviceSink, TTSStream
 
 
 async def main():
-    provider = OpenAITTSProvider(api_key="sk-...")
+    provider = OpenAITTSProvider()  # uses OPENAI_API_KEY, or pass api_key="sk-..."
     session = provider.session(voice="nova", speed=1.0)
 
     async with TTSStream(session, sink=SoundDeviceSink()) as tts:
@@ -73,7 +79,8 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from agentpool_tts import TTSStream, EdgeTTSProvider, SoundDeviceSink
+
+from anyvoice import EdgeTTSProvider, SoundDeviceSink, TTSStream
 
 
 async def main():
@@ -89,27 +96,32 @@ asyncio.run(main())
 
 ### Streaming from an LLM
 
-```python
-async def stream_llm_response():
-    provider = OpenAITTSProvider()
-    session = provider.session(voice="nova")
+Any async iterator of text chunks works:
 
-    async with TTSStream(session, mode="sync_run") as tts:
-        async for chunk in llm.stream("Tell me a joke"):
+```python
+from collections.abc import AsyncIterator
+
+from anyvoice import OpenAITTSProvider, TTSStream
+
+
+async def speak(chunks: AsyncIterator[str]):
+    session = OpenAITTSProvider().session(voice="nova")
+
+    async with TTSStream(session, mode="sync_run") as tts:  # plays through the speakers
+        async for chunk in chunks:
             print(chunk, end="", flush=True)
             await tts.feed(chunk)
-    # Audio completes before exiting the context
+    # Audio has finished playing when the context exits
 ```
 
-### Save to file
+### Save to a file
 
 ```python
-from agentpool_tts import TTSStream, OpenAITTSProvider, FileSink
+from anyvoice import EdgeTTSProvider, FileSink, TTSStream
 
 
 async def save_audio():
-    provider = OpenAITTSProvider()
-    session = provider.session(voice="alloy")
+    session = EdgeTTSProvider().session()
 
     async with TTSStream(session, sink=FileSink("output.wav")) as tts:
         await tts.feed("This will be saved to a WAV file.")
@@ -118,49 +130,62 @@ async def save_audio():
 ### Custom audio handling
 
 ```python
-from agentpool_tts import TTSStream, OpenAITTSProvider, CallbackSink
+from anyvoice import CallbackSink, OpenAITTSProvider, TTSStream
 
 
 async def custom_handler():
-    chunks = []
+    chunks: list[bytes] = []
 
-    async def on_audio(chunk: bytes):
-        chunks.append(chunk)
+    session = OpenAITTSProvider().session(voice="echo")
 
-    provider = OpenAITTSProvider()
-    session = provider.session(voice="echo")
-
-    async with TTSStream(session, sink=CallbackSink(on_audio)) as tts:
+    async with TTSStream(session, sink=CallbackSink(chunks.append)) as tts:
         await tts.feed("Process this audio yourself!")
 
-    # Do something with collected chunks
     total_bytes = sum(len(c) for c in chunks)
     print(f"Received {total_bytes} bytes of audio")
 ```
 
+Callbacks may be sync or async. Audio is always 16-bit signed mono PCM (24 kHz by default).
+
+### Using a session directly
+
+Skip the orchestrator if you just want the audio chunks:
+
+```python
+from anyvoice import EdgeTTSProvider
+
+
+async def synthesize():
+    session = EdgeTTSProvider().session()
+    async for pcm_chunk in session.synthesize("Hello world."):
+        ...
+```
+
 ## Synchronization Modes
 
-Control how TTS playback synchronizes with your text stream:
+Text is buffered until a sentence terminator (`.`, `!`, `?`, newline) appears after at least
+`min_text_length` characters; the remainder is synthesized when the context exits.
 
 | Mode | Behavior |
 |------|----------|
-| `sync_sentence` | Wait for each sentence's audio before continuing (most synchronized) |
-| `sync_run` | Stream fast, wait for all audio at context exit (default) |
-| `async_queue` | Audio plays in background, multiple streams queue up |
-| `async_cancel` | Audio plays in background, new stream cancels previous |
+| `sync_sentence` | `feed()` waits until each sentence has been synthesized and written to the sink |
+| `sync_run` | `feed()` returns immediately, sentences are synthesized in the background; the context exit waits for all audio (default) |
+| `async_queue` | Like `sync_run`, but the context exit does not wait for pending audio |
+| `async_cancel` | Currently behaves like `async_queue`; use `await tts.cancel()` to drop pending audio |
 
 ```python
 async with TTSStream(session, mode="sync_sentence") as tts:
     await tts.feed("This sentence plays completely.")
-    # Audio finished before next feed()
+    # Audio finished before the next feed()
     await tts.feed("Then this one plays.")
 ```
 
-## API Reference
+## API Overview
 
 ### Providers
 
 **OpenAITTSProvider**
+
 ```python
 provider = OpenAITTSProvider(api_key="...", base_url=None)
 session = provider.session(
@@ -172,10 +197,11 @@ session = provider.session(
 ```
 
 **EdgeTTSProvider**
+
 ```python
 provider = EdgeTTSProvider(default_voice="en-US-AriaNeural", sample_rate=24000)
 session = provider.session(
-    voice="en-US-AriaNeural",
+    voice="en-US-AriaNeural",  # list voices with `edge-tts --list-voices`
     rate="+0%",  # e.g., "+25%", "-10%"
     volume="+0%",
     pitch="+0Hz",
@@ -184,21 +210,30 @@ session = provider.session(
 
 ### Sinks
 
-- `SoundDeviceSink(sample_rate=24000)` - Play through speakers
-- `FileSink(path, sample_rate=24000)` - Save to WAV file
-- `CallbackSink(callback, on_close=None)` - Custom handling
+- `SoundDeviceSink(sample_rate=24000, channels=1)`: play through the speakers
+- `FileSink(path, sample_rate=24000, channels=1)`: save to a WAV file
+- `CallbackSink(callback, on_close=None)`: custom handling
+
+Implement your own by subclassing `anyvoice.AudioSink` and defining `async write(chunk)`.
+New providers subclass `TTSProvider` and `TTSSession`.
 
 ### TTSStream
 
 ```python
 TTSStream(
     session,  # From provider.session()
-    sink=SoundDeviceSink(),  # Audio output
+    sink=SoundDeviceSink(),  # Audio output (default: SoundDeviceSink)
     mode="sync_run",  # Synchronization mode
-    min_text_length=20,  # Buffer until this many chars
+    min_text_length=20,  # Minimum characters before a sentence is synthesized
+    sentence_terminators=None,  # Defaults to {".", "!", "?", "\n"}
 )
 ```
 
 Methods:
-- `await tts.feed(text)` - Add text to the stream
-- `await tts.cancel()` - Cancel pending synthesis/playback
+
+- `await tts.feed(text)`: add text to the stream
+- `await tts.cancel()`: drop pending synthesis and buffered text
+
+## License
+
+MIT
