@@ -18,9 +18,9 @@ TTSMode = Literal["sync_sentence", "sync_run", "async_queue", "async_cancel"]
 """TTS synchronization modes.
 
 - sync_sentence: Wait for each sentence's audio before continuing (slowest, most synchronized)
-- sync_run: Stream fast, wait for all audio at run end (default)
-- async_queue: Stream fast, audio plays in background, multiple runs queue up
-- async_cancel: Stream fast, audio plays in background, new run cancels previous audio
+- sync_run: Stream fast, wait for all audio at context exit (default)
+- async_queue: Stream fast, synthesis runs in background, context exit does not wait
+- async_cancel: Currently identical to async_queue (use `TTSStream.cancel()` to drop audio)
 """
 
 

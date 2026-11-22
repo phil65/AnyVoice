@@ -1,7 +1,7 @@
 site_name: "AnyVoice"
 site_description: "Common interface for streaming tts providers"
-repo_url: "https://github.com/phil65/anyvoice/"
-site_url: https://phil65.github.io/anyvoice/
+repo_url: "https://github.com/phil65/AnyVoice/"
+site_url: https://phil65.github.io/AnyVoice/
 site_author: "Philipp Temminghoff"
 copyright: Copyright &copy; 2025 Philipp Temminghoff
 
