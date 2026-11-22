@@ -27,8 +27,6 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "pydantic",
-  "schemez",
   # Only add below (Copier)
 ]
 
@@ -40,7 +38,7 @@ Issues = "https://github.com/phil65/anyvoice/issues"
 Source = "https://github.com/phil65/anyvoice"
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0", "sounddevice>=0.5.0", "numpy>=1.24.0"]  # Text-to-Speech with OpenAI
+openai = ["openai>=1.0.0", "sounddevice>=0.5.0"]  # Text-to-Speech with OpenAI
 tts-edge = [
   "edge-tts>=7.0.0",
   "miniaudio>=1.60",
@@ -53,8 +51,9 @@ dev = [
   "devtools",
   "pyreadline3",
   "pytest",
-  "pytest-cov",
   # Only add below (Copier)
+  "pytest-asyncio>=1.2.0",
+  "pytest-cov",
 ]
 benchmark = ["pyinstrument"]
 docs = [
@@ -119,6 +118,7 @@ log_format = "%(asctime)s %(levelname)s %(message)s"
 minversion = "9.0"
 testpaths = ["tests/"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
