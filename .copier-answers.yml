@@ -1,6 +1,6 @@
 # Changes here will be overwritten by Copier
 _commit: v2.3.3
-_src_path: https://github.com/phil65/copier-phil65
+_src_path: https://github.com/phil65/copier-phil65.git
 author_email: philipptemminghoff@googlemail.com
 author_fullname: Philipp Temminghoff
 author_username: phil65
@@ -15,7 +15,7 @@ python_minimum_version: '3.13'
 python_package_command_line_name: anyvoice
 python_package_distribution_name: anyvoice
 python_package_import_name: anyvoice
-repository_name: anyvoice
+repository_name: AnyVoice
 repository_namespace: phil65
 repository_provider: github.com
 
