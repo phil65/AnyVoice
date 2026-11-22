@@ -55,6 +55,7 @@ pip install agentpool[tts-edge]
 import asyncio
 from agentpool_tts import TTSStream, OpenAITTSProvider, SoundDeviceSink
 
+
 async def main():
     provider = OpenAITTSProvider(api_key="sk-...")
     session = provider.session(voice="nova", speed=1.0)
@@ -63,6 +64,7 @@ async def main():
         await tts.feed("Hello! ")
         await tts.feed("This is streaming TTS. ")
         await tts.feed("Pretty cool, right?")
+
 
 asyncio.run(main())
 ```
@@ -73,12 +75,14 @@ asyncio.run(main())
 import asyncio
 from agentpool_tts import TTSStream, EdgeTTSProvider, SoundDeviceSink
 
+
 async def main():
     provider = EdgeTTSProvider()
     session = provider.session(voice="en-GB-SoniaNeural", rate="+10%")
 
     async with TTSStream(session, sink=SoundDeviceSink()) as tts:
         await tts.feed("Hello from Edge TTS!")
+
 
 asyncio.run(main())
 ```
@@ -102,6 +106,7 @@ async def stream_llm_response():
 ```python
 from agentpool_tts import TTSStream, OpenAITTSProvider, FileSink
 
+
 async def save_audio():
     provider = OpenAITTSProvider()
     session = provider.session(voice="alloy")
@@ -114,6 +119,7 @@ async def save_audio():
 
 ```python
 from agentpool_tts import TTSStream, OpenAITTSProvider, CallbackSink
+
 
 async def custom_handler():
     chunks = []
@@ -158,9 +164,9 @@ async with TTSStream(session, mode="sync_sentence") as tts:
 ```python
 provider = OpenAITTSProvider(api_key="...", base_url=None)
 session = provider.session(
-    model="tts-1",      # or "tts-1-hd"
-    voice="alloy",      # alloy, echo, fable, onyx, nova, shimmer
-    speed=1.0,          # 0.25 to 4.0
+    model="tts-1",  # or "tts-1-hd"
+    voice="alloy",  # alloy, echo, fable, onyx, nova, shimmer
+    speed=1.0,  # 0.25 to 4.0
     chunk_size=1024,
 )
 ```
@@ -170,7 +176,7 @@ session = provider.session(
 provider = EdgeTTSProvider(default_voice="en-US-AriaNeural", sample_rate=24000)
 session = provider.session(
     voice="en-US-AriaNeural",
-    rate="+0%",         # e.g., "+25%", "-10%"
+    rate="+0%",  # e.g., "+25%", "-10%"
     volume="+0%",
     pitch="+0Hz",
 )
@@ -186,10 +192,10 @@ session = provider.session(
 
 ```python
 TTSStream(
-    session,                    # From provider.session()
-    sink=SoundDeviceSink(),     # Audio output
-    mode="sync_run",            # Synchronization mode
-    min_text_length=20,         # Buffer until this many chars
+    session,  # From provider.session()
+    sink=SoundDeviceSink(),  # Audio output
+    mode="sync_run",  # Synchronization mode
+    min_text_length=20,  # Buffer until this many chars
 )
 ```
 
