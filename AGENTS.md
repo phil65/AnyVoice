@@ -52,7 +52,7 @@ uv run pytest                   # tests
 uv run ruff check . && uv run ruff format --check .
 uv run ty check                 # type check (src only, warnings fail CI)
 uv run deptry src               # undeclared / unused dependencies
-uv run mkdocs-mknodes build     # docs site (README + generated API pages)
+uv run mknodes build            # docs site (README + generated API pages)
 uv build
 uvx duty lint                   # ruff fix + format + ty (duties.py; duty is not a project dependency)
 ```
