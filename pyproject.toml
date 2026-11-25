@@ -45,6 +45,8 @@ Documentation = "https://phil65.github.io/AnyVoice/"
 Homepage = "https://github.com/phil65/AnyVoice"
 Issues = "https://github.com/phil65/AnyVoice/issues"
 Source = "https://github.com/phil65/AnyVoice"
+"Spec: Edge TTS" = "https://github.com/rany2/edge-tts"
+"Spec: OpenAI Text-to-Speech" = "https://platform.openai.com/docs/api-reference/audio/createSpeech"
 
 [project.optional-dependencies]
 openai = ["openai>=1.0.0", "sounddevice>=0.5.0"]  # Text-to-Speech with OpenAI

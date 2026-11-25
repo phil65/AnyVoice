@@ -73,6 +73,13 @@ ruff format check, `ty check`, pytest with coverage, on 3.13/3.14 x Linux/macOS/
 - Tests are async functions (`asyncio_mode = "auto"`, pytest-asyncio). Don't hit the network or
   audio devices in tests; use a fake `TTSSession` and `CallbackSink`/`FileSink`.
 
+## Specs
+
+| Spec | URL | Targets | Code | Update check |
+|---|---|---|---|---|
+| OpenAI Text-to-Speech (`audio.speech`, via `openai>=1.0.0`) | https://platform.openai.com/docs/api-reference/audio/createSpeech | unpinned (tracks latest SDK; models `tts-1` / `tts-1-hd`) | `src/anyvoice/providers/openai.py` | https://platform.openai.com/docs/changelog |
+| Microsoft Edge read-aloud TTS (unofficial, via `edge-tts>=7.0.0`) | https://github.com/rany2/edge-tts | unpinned (tracks latest `edge-tts`) | `src/anyvoice/providers/edge.py` | https://github.com/rany2/edge-tts/releases |
+
 ## Pitfalls
 
 - Copier-managed project (`.copier-answers.yml`, template `copier-phil65`). Don't hand-edit
