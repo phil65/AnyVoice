@@ -17,8 +17,6 @@ Example:
         await tts.feed("world!")
 """
 
-from __future__ import annotations
-
 from importlib.metadata import version
 
 from anyvoice.base import AudioSink, TTSProvider, TTSSession

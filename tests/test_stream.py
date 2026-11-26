@@ -1,7 +1,5 @@
 """Tests for TTSStream and audio sinks (no network or audio device needed)."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
 import wave
 

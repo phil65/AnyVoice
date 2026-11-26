@@ -1,7 +1,5 @@
 """OpenAI example."""
 
-from __future__ import annotations
-
 import asyncio
 
 from anyvoice import OpenAITTSProvider, SoundDeviceSink, TTSStream

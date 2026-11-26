@@ -1,7 +1,5 @@
 """OpenAI TTS provider implementation."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from anyvoice.base import TTSProvider, TTSSession

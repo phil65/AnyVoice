@@ -1,7 +1,5 @@
 """TTSStream orchestrator for streaming TTS with buffering and modes."""
 
-from __future__ import annotations
-
 import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Literal, Self
