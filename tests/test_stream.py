@@ -254,3 +254,79 @@ async def test_sink_closed_when_session_exit_fails() -> None:
         async with TTSStream(BrokenExitSession(), sink=sink):
             pass
     assert sink.closed
+
+
+async def test_edge_decodes_off_the_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import threading
+    import types
+
+    from anyvoice.providers.edge import EdgeTTSSession
+
+    decode_threads: list[threading.Thread] = []
+
+    class Communicate:
+        def __init__(self, text: str, **_: Any) -> None:
+            pass
+
+        async def stream(self) -> AsyncIterator[dict[str, Any]]:
+            yield {"type": "audio", "data": b"mp3"}
+
+    def decode(data: bytes, **_: Any) -> Any:
+        decode_threads.append(threading.current_thread())
+        samples = types.SimpleNamespace(tobytes=lambda: b"pcm")
+        return types.SimpleNamespace(samples=samples)
+
+    edge_tts = types.SimpleNamespace(Communicate=Communicate)
+    miniaudio = types.SimpleNamespace(decode=decode, SampleFormat=types.SimpleNamespace(SIGNED16=1))
+    monkeypatch.setitem(sys.modules, "edge_tts", edge_tts)
+    monkeypatch.setitem(sys.modules, "miniaudio", miniaudio)
+    chunks = [c async for c in EdgeTTSSession().synthesize("Hello.")]
+    assert chunks == [b"pcm"]
+    assert decode_threads
+    assert decode_threads[0] is not threading.main_thread()
+
+
+class _FakeOpenAI:
+    instances: list[_FakeOpenAI] = []  # noqa: RUF012
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.closed = False
+        _FakeOpenAI.instances.append(self)
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+@pytest.fixture
+def fake_openai(monkeypatch: pytest.MonkeyPatch) -> type[_FakeOpenAI]:
+    import openai
+
+    _FakeOpenAI.instances = []
+    monkeypatch.setattr(openai, "AsyncOpenAI", _FakeOpenAI)
+    return _FakeOpenAI
+
+
+async def test_openai_session_closes_its_own_client(fake_openai: type[_FakeOpenAI]) -> None:
+    from anyvoice import OpenAITTSProvider
+
+    session = OpenAITTSProvider(api_key="x").session()
+    async with session:
+        session._get_client()  # created on first use
+    assert len(fake_openai.instances) == 1
+    assert fake_openai.instances[0].closed
+
+
+async def test_openai_provider_client_shared_and_closed(
+    fake_openai: type[_FakeOpenAI],
+) -> None:
+    from anyvoice import OpenAITTSProvider
+
+    provider = OpenAITTSProvider(api_key="x")
+    async with provider:
+        for _ in range(2):
+            async with provider.session() as session:
+                session._get_client()
+        assert len(fake_openai.instances) == 1
+        assert not fake_openai.instances[0].closed  # sessions don't close the shared one
+    assert fake_openai.instances[0].closed

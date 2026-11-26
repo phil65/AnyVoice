@@ -53,10 +53,11 @@ class SoundDeviceSink(AudioSink):
         exc_tb: TracebackType | None,
     ) -> None:
         """Stop and close the audio output stream."""
-        if self._stream is not None:
-            self._stream.stop()
-            self._stream.close()
+        if (stream := self._stream) is not None:
             self._stream = None
+            # stop() waits for the pending buffers to play: keep the loop free
+            await asyncio.to_thread(stream.stop)
+            await asyncio.to_thread(stream.close)
 
     async def write(self, chunk: bytes) -> None:
         """Write audio chunk to the output stream.

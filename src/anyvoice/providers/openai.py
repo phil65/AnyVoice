@@ -8,7 +8,7 @@ from anyvoice.base import TTSProvider, TTSSession
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
     from types import TracebackType
 
     from openai import AsyncOpenAI
@@ -21,27 +21,52 @@ class OpenAITTSSession(TTSSession):
     """TTS session using OpenAI's streaming API.
 
     Args:
-        client: OpenAI async client.
+        client: OpenAI async client (owned by the caller, not closed by the session).
         model: TTS model to use.
         voice: Voice for synthesis.
         speed: Speech speed (0.25 to 4.0).
         chunk_size: Size of audio chunks to yield.
+        client_factory: Creates a client when none is given; the session owns that
+            client and closes it on exit (a later use creates a new one).
     """
 
     def __init__(
         self,
-        client: AsyncOpenAI,
+        client: AsyncOpenAI | None = None,
         *,
         model: TTSModel = "tts-1",
         voice: TTSVoice = "alloy",
         speed: float = 1.0,
         chunk_size: int = 1024,
+        client_factory: Callable[[], AsyncOpenAI] | None = None,
     ) -> None:
+        if client is None and client_factory is None:
+            msg = "OpenAITTSSession needs a client or a client_factory"
+            raise ValueError(msg)
         self._client = client
+        self._client_factory = client_factory
+        self._owns_client = client is None
         self._model = model
         self._voice = voice
         self._speed = speed
         self._chunk_size = chunk_size
+
+    def _get_client(self) -> AsyncOpenAI:
+        if self._client is None:
+            assert self._client_factory is not None
+            self._client = self._client_factory()
+        return self._client
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Close the client if the session created it."""
+        if self._owns_client and (client := self._client) is not None:
+            self._client = None
+            await client.close()
 
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:
         """Synthesize text to PCM audio using OpenAI's streaming API.
@@ -55,7 +80,7 @@ class OpenAITTSSession(TTSSession):
         if not text.strip():
             return
 
-        async with self._client.audio.speech.with_streaming_response.create(
+        async with self._get_client().audio.speech.with_streaming_response.create(
             model=self._model,
             voice=self._voice,
             input=text,
@@ -95,10 +120,9 @@ class OpenAITTSProvider(TTSProvider):
         self._client: AsyncOpenAI | None = None
 
     async def __aenter__(self) -> Self:
-        """Initialize the OpenAI client."""
-        from openai import AsyncOpenAI
-
-        self._client = AsyncOpenAI(api_key=self._api_key, base_url=self._base_url)
+        """Initialize the OpenAI client shared by the sessions created inside."""
+        if self._client is None:
+            self._client = self._create_client()
         return self
 
     async def __aexit__(
@@ -112,13 +136,10 @@ class OpenAITTSProvider(TTSProvider):
             await self._client.close()
             self._client = None
 
-    def _get_client(self) -> AsyncOpenAI:
-        """Get the OpenAI client, initializing lazily if needed."""
-        if self._client is None:
-            from openai import AsyncOpenAI
+    def _create_client(self) -> AsyncOpenAI:
+        from openai import AsyncOpenAI
 
-            self._client = AsyncOpenAI(api_key=self._api_key, base_url=self._base_url)
-        return self._client
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url)
 
     def session(
         self,
@@ -138,14 +159,16 @@ class OpenAITTSProvider(TTSProvider):
             chunk_size: Size of audio chunks in bytes. Defaults to 1024.
 
         Returns:
-            Configured OpenAI TTS session.
+            Configured OpenAI TTS session. Inside `async with provider` it uses the
+            provider's client; otherwise it creates its own and closes it on exit.
         """
         return OpenAITTSSession(
-            self._get_client(),
+            self._client,
             model=model,
             voice=voice,
             speed=speed,
             chunk_size=chunk_size,
+            client_factory=self._create_client,
         )
 
 

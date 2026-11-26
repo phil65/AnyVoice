@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Self
 
 from anyvoice.base import TTSProvider, TTSSession
@@ -71,8 +72,10 @@ class EdgeTTSSession(TTSSession):
                 mp3_data.extend(chunk["data"])
 
         if mp3_data:
-            # Decode MP3 to mono 16-bit PCM at target sample rate
-            decoded = miniaudio.decode(
+            # Decode MP3 to mono 16-bit PCM at target sample rate, off the event
+            # loop (CPU-bound; runs in parallel under free-threading)
+            decoded = await asyncio.to_thread(
+                miniaudio.decode,
                 bytes(mp3_data),
                 output_format=miniaudio.SampleFormat.SIGNED16,
                 nchannels=1,
