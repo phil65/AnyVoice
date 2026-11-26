@@ -5,7 +5,7 @@
 AnyVoice (`anyvoice`) is a small async library giving streaming text-to-speech providers a
 common interface. Text is fed incrementally (e.g. from an LLM stream), buffered into sentences,
 synthesized by a provider session and written as 16-bit mono PCM to a pluggable audio sink.
-Providers: OpenAI TTS and Microsoft Edge TTS. Python >= 3.13, no required runtime dependencies.
+Providers: OpenAI TTS and Microsoft Edge TTS. Python >= 3.14, no required runtime dependencies.
 
 ## Architecture
 
@@ -70,7 +70,7 @@ ruff format check, `ty check`, pytest with coverage, on 3.13/3.14 x Linux/macOS/
 
 ## Conventions
 
-- `from __future__ import annotations` everywhere; typing-only imports under `TYPE_CHECKING`.
+- No `from __future__ import annotations` (PEP 649; banned via ruff TID251); typing-only imports under `TYPE_CHECKING`.
 - Google-style docstrings (`[tool.mknodes] docstring-style = "google"`); API docs are generated.
 - Ruff with a broad rule set and preview formatting, line length 100. Markdown code blocks
   (README) are formatted too.
