@@ -16,15 +16,22 @@ All code lives in `src/anyvoice/`:
   - `TTSSession`: `synthesize(text) -> AsyncIterator[bytes]` (PCM chunks); async context manager.
   - `AudioSink`: `async write(chunk)`; async context manager (open/flush/close).
 - `providers/openai.py`: `OpenAITTSProvider` / `OpenAITTSSession` (streams `response_format="pcm"`
-  at 24 kHz via `AsyncOpenAI`; client created lazily or in `__aenter__`).
+  at 24 kHz via `AsyncOpenAI`). Inside `async with provider` sessions share the provider's client
+  (closed on the provider's exit); otherwise each session creates its own on first use and closes
+  it on its exit.
 - `providers/edge.py`: `EdgeTTSProvider` / `EdgeTTSSession` (collects MP3 from `edge_tts`, decodes
-  with `miniaudio` to PCM, yields one chunk per sentence).
+  with `miniaudio` to PCM in a thread, yields one chunk per sentence).
 - `sinks.py`: `SoundDeviceSink` (speaker playback via `sounddevice.RawOutputStream`), `FileSink`
   (buffers, writes a WAV on exit), `CallbackSink` (sync or async callback).
 - `stream.py`: `TTSStream` orchestrator and the `TTSMode` literal. `feed()` appends to a buffer;
   once a sentence terminator appears past `min_text_length`, the text up to the last terminator is
-  either synthesized inline (`sync_sentence`) or queued for a background worker task. `__aexit__`
-  flushes the remaining buffer and, for sync modes, waits for the worker.
+  either synthesized inline (`sync_sentence`) or queued for a background worker task. Session and
+  sink are entered through an `AsyncExitStack`. On a clean exit `__aexit__` flushes the remaining
+  buffer; the sync modes wait for the worker and close, the async modes hand the rest to a
+  background task that drains the queue and then closes (`wait_closed()`; kept referenced in
+  `_background_tasks`). An exception/cancellation inside the context cancels the worker and drops
+  the queue. A worker failure stops the worker; the error is raised from the next `feed()` or the
+  exit.
 - `log.py`: `get_logger(name)` returns `anyvoice.<name>` loggers.
 - `__init__.py`: re-exports the public API (`__all__`), `__version__` from package metadata.
 
