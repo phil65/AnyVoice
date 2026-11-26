@@ -18,14 +18,13 @@ logger = get_logger("stream")
 # Background closing tasks of the async modes (strong references until done)
 _background_tasks: set[asyncio.Task[None]] = set()
 
-TTSMode = Literal["sync_sentence", "sync_run", "async_queue", "async_cancel"]
+TTSMode = Literal["sync_sentence", "sync_run", "async_queue"]
 """TTS synchronization modes.
 
 - sync_sentence: Wait for each sentence's audio before continuing (slowest, most synchronized)
 - sync_run: Stream fast, wait for all audio at context exit (default)
 - async_queue: Stream fast, synthesis runs in background, context exit does not wait
   (the rest plays in the background, then session and sink close; `wait_closed()`)
-- async_cancel: Currently identical to async_queue (use `TTSStream.cancel()` to drop audio)
 
 An exception or cancellation inside the context drops pending audio in every mode.
 """
@@ -113,7 +112,7 @@ class TTSStream:
             return
         try:
             await self._flush()
-            if self._mode in ("async_queue", "async_cancel"):
+            if self._mode == "async_queue":
                 task = asyncio.create_task(self._drain_and_close())
                 self._closing_task = task
                 _background_tasks.add(task)

@@ -142,7 +142,7 @@ def _worker_tasks() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize("mode", ["async_queue", "async_cancel"])
+@pytest.mark.parametrize("mode", ["async_queue"])
 async def test_async_modes_close_resources_after_the_worker(mode: Any) -> None:
     session = SlowSession()
     sink = RecordingSink()

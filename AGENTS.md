@@ -95,9 +95,9 @@ ruff format check, `ty check`, pytest with coverage, on 3.13/3.14 x Linux/macOS/
 - Extras: `openai` (`openai`, `sounddevice`), `tts-edge` (`edge-tts`, `miniaudio`, `sounddevice`).
   `sounddevice` needs the PortAudio system library at runtime.
 - `TTSStream` defaults to `SoundDeviceSink` when no sink is passed; always pass a sink in tests.
-- `async_queue` / `async_cancel` modes do not wait for the worker in `__aexit__`, and
-  `async_cancel` currently behaves like `async_queue`. Pending audio may be cut off when the
-  context exits.
+- `async_queue` doesn't wait in `__aexit__`: a background task plays the rest, then closes the
+  session and sink (`wait_closed()` waits for it). Dropping pending audio is `cancel()`, in any
+  mode (there's no separate cancelling mode).
 - `OpenAITTSProvider` reads `OPENAI_API_KEY` when no `api_key` is given. Edge TTS needs no key but
   needs network access.
 - `uv.lock` is gitignored.

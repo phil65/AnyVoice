@@ -170,9 +170,9 @@ Text is buffered until a sentence terminator (`.`, `!`, `?`, newline) appears af
 | `sync_sentence` | `feed()` waits until each sentence has been synthesized and written to the sink |
 | `sync_run` | `feed()` returns immediately, sentences are synthesized in the background; the context exit waits for all audio (default) |
 | `async_queue` | Like `sync_run`, but the context exit does not wait: pending audio plays in the background, then the session and sink close (`await tts.wait_closed()` waits for that) |
-| `async_cancel` | Currently behaves like `async_queue`; use `await tts.cancel()` to drop pending audio |
 
-An exception or a cancellation inside the context drops the pending audio in every mode. If
+To drop pending audio (in any mode, e.g. when a new answer replaces the old one), call
+`await tts.cancel()`. An exception or a cancellation inside the context drops the pending audio in every mode. If
 background synthesis fails, the error is raised from the next `feed()` or the context exit
 (`wait_closed()` in the async modes).
 
